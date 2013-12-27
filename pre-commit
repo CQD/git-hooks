@@ -63,7 +63,7 @@ foreach ($fileList as $file) {
 
    // 檢查有沒有需要注意的字串
    echo "- 檢查需要注意的字串...";
-   $pattern = "(print_r|var_dump|var_export|// *XXX|// *TODO)";
+   $pattern = "(print_r|var_dump|var_export|// *XXX)";
    unset($lint_output);
    exec("{$fileContent} | grep -n -i -E '{$pattern}'", $lint_output, $return);
    if (count($lint_output)>0) {
