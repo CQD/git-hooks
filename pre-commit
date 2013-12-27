@@ -45,6 +45,7 @@ foreach ($fileList as $file) {
 
     // Only PHP file
     if (pathinfo($fileName,PATHINFO_EXTENSION) != "php") {
+        echo "不是 PHP，跳過不檢查\n";
         continue;
     }
 
