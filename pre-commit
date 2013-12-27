@@ -1,0 +1,107 @@
+#!/usr/local/bin/php
+<?php
+
+// console color code
+$_c = chr(27);
+$_rb = "{$_c}[41m";      // red background
+$_gb = "{$_c}[42m";      // green background
+$_yb = "{$_c}[43m";      // yellow background
+$_bb = "{$_c}[44m";      // blue background
+$_df = "{$_c}[30m";      // dark foreground
+$_rf = "{$_c}[31m";      // red foreground
+$_gf = "{$_c}[32m";      // green foreground
+$_yf = "{$_c}[33m";      // yellow foreground
+$_bf = "{$_c}[34m";      // blue foreground
+$_mf = "{$_c}[35m";      // magenta foreground
+$_cf = "{$_c}[36m";      // cyan foreground
+$_wf = "{$_c}[37m";      // white foreground
+$_r = "{$_c}[0m";        // color reset
+
+
+// control flags
+$error = false;
+$warning = false;
+
+// 撈出 commit 中有哪些檔案要處理
+// 只撈出 added/copied/modified
+exec('git diff --cached --name-status --diff-filter=ACM', $fileList);
+
+if (count($fileList)==0) {
+    // 沒有檔案在 index 裡面的話就不做檢查
+    exit;
+}
+
+// 每個檔案依序做檢查
+foreach ($fileList as $file) {
+
+    $fileName = trim(substr($file, 1) );
+    $fileContent = "git show :".escapeshellarg($fileName);     // 這個指令會吐出 index 裡面的檔案內容
+                                                               //（嚴格說起來是 stage number=0 的狀況）
+                                                               // 參照 gitrevisions, git-show
+                                                               // TODO 改寫成不需要每個檢查都重新下一次這段指令
+
+    echo "\n{$_bf}======[{$_gf} {$fileName} {$_bf}]======{$_r}\n";
+
+
+    // Only PHP file
+    if (pathinfo($fileName,PATHINFO_EXTENSION) != "php") {
+        continue;
+    }
+
+   // 檢查語法錯誤
+   $lint_output = array();
+   echo "- 檢查 PHP 語法...";
+   unset($lint_output);
+   exec("{$fileContent} | php -l 2>/dev/null", $lint_output, $return);
+   if ($return!=0) {
+       echo "{$_rb}{$_df} 發現語法錯誤! {$_r}{$_yf}\n";
+       echo implode("\n", $lint_output), "{$_r}\n\n";
+       $error = true;
+   } else {
+       echo "OK\n";
+   }
+
+   // 檢查有沒有需要注意的字串
+   echo "- 檢查需要注意的字串...";
+   $pattern = "(print_r|var_dump|var_export|// *XXX|// *TODO)";
+   unset($lint_output);
+   exec("{$fileContent} | grep -n -i -E '{$pattern}'", $lint_output, $return);
+   if (count($lint_output)>0) {
+       echo "{$_yb}{$_df} 發現需要注意的字串! {$_r}{$_yf}\n";
+       $warning = true;
+       foreach ($lint_output as $line) {
+           $line = explode(':', $line, 2);
+           echo "{$_yf}{$line[0]}: {$_cf}{$line[1]}\n";
+       }
+       echo "{$_r}";
+   } else {
+       echo "OK\n";
+   }
+
+}
+
+
+// 印出結果
+echo "\n{$_bf}====================================================\n";
+if ($error) {
+    echo "|  {$_rf}有錯誤，不允許 commit!\n";
+} elseif ($warning) {
+    echo "|  {$_yf}允許 commit，但請確認上面的警告是否皆屬正常!\n";
+} else {
+    echo "| {$_gf}檢查 OK!{$_r}\n";
+}
+echo "{$_bf}===================================================={$_r}\n";
+
+if ($warning) {
+    // 有 warning 就等一下
+    // TODO 改成「按一下以繼續」
+    echo "等 5 秒以繼續 commit，或按 ctrl-c 中斷...\n";
+    sleep(5);
+} elseif (!$error) {
+    // 沒有 warning 也沒有 error
+    // 等一下下讓使用者看到訊息，然後繼續
+    usleep(500000); // 500,000 micro sec = 0.5 sec
+}
+
+// 有 error 就停止，否則允許 commit
+$error ? exit(1) : exit(0);
