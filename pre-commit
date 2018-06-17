@@ -98,10 +98,6 @@ if ($warning) {
     // TODO 改成「按一下以繼續」
     echo "等 5 秒以繼續 commit，或按 ctrl-c 中斷...\n";
     sleep(5);
-} elseif (!$error) {
-    // 沒有 warning 也沒有 error
-    // 等一下下讓使用者看到訊息，然後繼續
-    usleep(500000); // 500,000 micro sec = 0.5 sec
 }
 
 // 有 error 就停止，否則允許 commit
